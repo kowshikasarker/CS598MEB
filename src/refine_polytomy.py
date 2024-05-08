@@ -48,25 +48,20 @@ def calulcate_cluster_distribution(leafset, cell_to_cluster):
     counts = [0 for i in range(max_cluster_no)]
     
     for leaf in leafset:
-        #print(type(node.taxon.label))
         cluster = cell_to_cluster[leaf]
         counts[cluster-1] += 1
     
     total = sum(counts)
     if(total != len(leafset)):
-        print('Something went wrong')
+        raise Exception('Something went wrong')
     
     distribution = []
     for i in range(max_cluster_no):
         distribution.append(counts[i] / len(leafset))
         
-    #print('counts', counts)
-    print('distribution', distribution)
     return distribution
 
 def jensen_shannon_distance(leafset1, leafset2, cell_to_cluster):
-    print('leafset1', leafset1)
-    print('leafset2', leafset2)
     p = calulcate_cluster_distribution(leafset1, cell_to_cluster)
     q = calulcate_cluster_distribution(leafset2, cell_to_cluster)
     return jensenshannon(p, q, base=2)
@@ -92,10 +87,8 @@ def cluster_path_len_distance_matrix(cluster_lineage, distance=None, node_names=
         node_name = int(node.label)
     node_names.append(node_name)
     
-    #print('node', node, node.label)
     distance[(node_name, node_name)] = 0
     for child in node.child_nodes():
-        #print('child', child, child.label)
         if(child.is_leaf()):
             child_name = int(child.taxon.label)
         else:
@@ -110,20 +103,15 @@ def cluster_path_len_distance_matrix(cluster_lineage, distance=None, node_names=
         distance.update(new_distance)
         
         if not child.is_leaf():
-            #print(child)
-            #print(cluster_lineage)
             subtree = dendropy.Tree(seed_node=child.extract_subtree(suppress_unifurcations=False))
             distance = cluster_path_len_distance_matrix(subtree, distance=distance, node_names=node_names, first_call=False)
         else:
             distance[(child_name, child_name)] = 0
          
-    #print('distance', distance) 
-    print('nodes on different root-to-leaf paths')
     if (first_call):
         all_node_pairs = list(product(node_names, repeat=2))
         for node_pair in all_node_pairs:
             if not (node_pair in distance.keys()):
-                print(node_pair)
                 mrca = cluster_lineage.mrca(node_pair).label
                 distance[node_pair] = distance[(mrca, node_pair[0])] + distance[(mrca, node_pair[1])]
                 distance[reversed(node_pair)] = distance[node_pair]
@@ -137,7 +125,6 @@ def cluster_path_len_distance(leafset1, leafset2, cell_to_cluster, cluster_linea
         dist_matrix = cluster_path_len_distance_matrix(cluster_lineage)
         max_dist = max(dist_matrix.values())
         state_change_matrix = {cluster_pair: dist / max_dist for cluster_pair, dist in dist_matrix.items()}
-        print('state_change_matrix', state_change_matrix)
     
     leaf_pairs = list(itertools.product(leafset1, leafset2))
     total_dist = 0
@@ -145,7 +132,6 @@ def cluster_path_len_distance(leafset1, leafset2, cell_to_cluster, cluster_linea
         cluster_pair = (cell_to_cluster[leaf_pair[0]], cell_to_cluster[leaf_pair[1]]) 
         total_dist += state_change_matrix[cluster_pair]
     avg_dist = total_dist / len(leaf_pairs)
-    print('total_dist', total_dist, 'avg_dist', avg_dist)
     return avg_dist
 
 def cell_path_distance(leafset1, leafset2, cell_lineage):
@@ -156,18 +142,7 @@ def cell_pseudotemporal_distance(leafset1, leafset2, cell_pseudotime):
 
 def cluster_pseudotemporal_distance(leafset1, leafset2, cell_pseudotime):
     pass
-
-def distance_between_leafset_pairs(leafset1, leafset2, distance, cell_to_cluster, cluster_lineage):
-    # d1 = 'jensen_shannon'
-    # d2 = 'cluster_overlap'
-    # d3 = 'cluster_path'
-    if(distance == 'd1'):
-        return jensen_shannon_distance(leafset1, leafset2, cell_to_cluster)
-    if(distance == 'd2'):
-        return cluster_overlap_distance(leafset1, leafset2, cell_to_cluster)
-    if(distance == 'd3'):
-        return cluster_path_len_distance(leafset1, leafset2, cell_to_cluster, cluster_lineage)
-
+    
 def cluster_path_len_neg_exp_similarity_matrix(cluster_lineage, similarity=None, node_names=[], first_call=True): # similarity = exp(-(path_length))
     if(similarity is None):
         similarity = {}
@@ -208,18 +183,16 @@ def cluster_path_len_neg_exp_similarity_matrix(cluster_lineage, similarity=None,
         else:
             similarity[(child_name, child_name)] = 1
 
-    #print('cost_map', cost_map) 
-    print('nodes on different root-to-leaf paths')
+    
     if (first_call):
         all_node_pairs = list(product(node_names, repeat=2))
         for node_pair in all_node_pairs:
             if not (node_pair in similarity.keys()):
-                print(node_pair)
+                #print(node_pair)
                 mrca = cluster_lineage.mrca(node_pair).label
                 similarity[node_pair] = 0
                 similarity[reversed(node_pair)] = 0
          
-    #print('similarity', similarity) 
     return similarity
 
 
@@ -227,7 +200,6 @@ def cluster_path_len_neg_exp_similarity(leafset1, leafset2, cell_to_cluster, clu
     global state_change_matrix
     if state_change_matrix is None:
         state_change_matrix = cluster_path_len_neg_exp_similarity_matrix(cluster_lineage)
-    print('cluster_path_len_neg_exp_similarity', state_change_matrix)
     
 
     leaf_pairs = list(itertools.product(leafset1, leafset2))
@@ -236,107 +208,23 @@ def cluster_path_len_neg_exp_similarity(leafset1, leafset2, cell_to_cluster, clu
         cluster_pair = (cell_to_cluster[leaf_pair[0]], cell_to_cluster[leaf_pair[1]]) 
         total_sim += state_change_matrix[cluster_pair]
     avg_sim = total_sim / len(leaf_pairs)
-    print('total_sim', total_sim, 'avg_sim', avg_sim)
     return avg_sim
 
 def similarity_between_leafset_pairs(leafset1, leafset2, similarity, cell_to_cluster, cluster_lineage):
     # s1 = 'cluster_similarity'
+    # d1 = 'jensen_shannon'
+    # d2 = 'cluster_overlap'
+    # d3 = 'cluster_path'
     if(similarity == 's1'):
         return cluster_path_len_neg_exp_similarity(leafset1, leafset2, cell_to_cluster, cluster_lineage)
+    if(similarity == 'd1'):
+        return -jensen_shannon_distance(leafset1, leafset2, cell_to_cluster)
+    if(similarity == 'd2'):
+        return -cluster_overlap_distance(leafset1, leafset2, cell_to_cluster)
+    if(similarity == 'd3'):
+        return -cluster_path_len_distance(leafset1, leafset2, cell_to_cluster, cluster_lineage)
     
-def recursively_refine_polytomy_using_distance(tree, cell_to_cluster, cluster_lineage, distance, threshold, distance_dict=None, save_distance=True):
-    #print('Function: recursively_refine_polytomy_using_distance', tree.__str__())
-    if(tree.seed_node.is_leaf() == 1):
-        #print('Leaf node.')
-        return None
-
-    if distance_dict is None:
-        distance_dict = {
-            'Max_Subtree_Size': [],
-            'Min_Subtree_Size': [],
-            'Max_Subtree': [],
-            'Min_Subtree': [],
-            'Distance': []
-        }
-
-    for child in tree.seed_node.child_nodes():
-        subtree = dendropy.Tree(seed_node=child.extract_subtree())
-        refined = recursively_refine_polytomy_using_distance(subtree, cell_to_cluster, cluster_lineage, distance, threshold, distance_dict=distance_dict, save_distance=False)
-        if not refined is None:
-            child.set_child_nodes(refined.seed_node.child_nodes())
-    
-
-    print('tree.seed_node.child_nodes()', tree.seed_node.child_nodes())
-    print('tree', tree.__str__())
-    
-
-    while(True):
-        flag = False # if any refinement happened
-
-        children = tree.seed_node.child_nodes()
-        print('children', children)
-        
-        if(len(children) < 3):
-            print('<3 children.')
-            break
-            
-        leafsets = []
-        topologies = []
-        
-        for i in range(len(children)):
-            topologies.append(dendropy.Tree(seed_node=children[i].extract_subtree()).__str__())
-            leafset = [leaf.taxon.label for leaf in children[i].leaf_nodes()]
-            leafsets.append(leafset)
-        print('leafsets', leafsets)
-            
-        pairwise_distance = {}
-        for i in range(len(children)):
-            for j in range(i+1, len(children)):
-                dist = distance_between_leafset_pairs(leafsets[i], leafsets[j], distance, cell_to_cluster, cluster_lineage)
-                pairwise_distance[(i, j)] = dist
-                if(len(leafsets[i]) > len(leafsets[j])):
-                    distance_dict['Max_Subtree_Size'].append(len(leafsets[i]))
-                    distance_dict['Max_Subtree'].append(topologies[i])
-                    distance_dict['Min_Subtree_Size'].append(len(leafsets[j]))
-                    distance_dict['Min_Subtree'].append(topologies[j])
-                else:
-                    distance_dict['Max_Subtree_Size'].append(len(leafsets[j]))
-                    distance_dict['Max_Subtree'].append(topologies[j])
-                    distance_dict['Min_Subtree_Size'].append(len(leafsets[i]))
-                    distance_dict['Min_Subtree'].append(topologies[i])                
-                distance_dict['Distance'].append(dist)
-                print(distance_dict)
-        print('pairwise_distance', pairwise_distance)
-        
-        while(True):
-            if not pairwise_distance:
-                break
-            closest_pair = min(pairwise_distance, key=pairwise_distance.get)
-            print('closest_pair', closest_pair, children[closest_pair[0]], children[closest_pair[1]])
-            min_dist = pairwise_distance[closest_pair]
-            print('min_dist', min_dist)
-            if(min_dist <= threshold):
-                flag = True
-                new_node = dendropy.Node()
-                new_node.parent_node = tree.seed_node
-                children[closest_pair[0]].parent_node = new_node
-                children[closest_pair[1]].parent_node = new_node
-                valid_pairs = [pair for pair in pairwise_distance.keys() if not ((closest_pair[0] in pair) or (closest_pair[1] in pair))]  
-                pairwise_distance = {key: value for key, value in pairwise_distance.items() if key in valid_pairs}
-            else:
-                break
-        print('One level refinement complete')
-        print('tree', tree.__str__())
-        if not flag:
-            break
-    if save_distance:
-        distance_df = pd.DataFrame.from_dict(distance_dict)
-        distance_df.to_csv(distance + '.tsv', sep='\t', index=False)
-
-    return tree
-
-def recursively_refine_polytomy_using_similarity(tree, cell_to_cluster, cluster_lineage, similarity, threshold, similarity_dict=None, save_similarity=True):
-    #print('Function: recursively_refine_polytomy_using_similarity', tree.__str__())
+def recursively_refine_polytomy_using_similarity(tree, cell_to_cluster, cluster_lineage, similarity, threshold, similarity_dict=None, save_similarity=True, refined_dict=None, save_refined=True):
     if (tree.seed_node.is_leaf()):
         return None
 
@@ -346,28 +234,32 @@ def recursively_refine_polytomy_using_similarity(tree, cell_to_cluster, cluster_
             'Min_Subtree_Size': [],
             'Max_Subtree': [],
             'Min_Subtree': [],
-            'Similarity': []
+            similarity: []
         }
 
-    for child in tree.seed_node.child_nodes():
+    if refined_dict is None:
+        refined_dict = {
+            'Unrefined_Degree': [],
+            'Refined_Degree': [],
+            'Refined_Topology': []
+        }
+
+    child_nodes = tree.seed_node.child_nodes()
+    for child in child_nodes:
+        child.label = ''
         subtree = dendropy.Tree(seed_node=child.extract_subtree())
-        refined = recursively_refine_polytomy_using_similarity(subtree, cell_to_cluster, cluster_lineage, similarity, threshold, similarity_dict=similarity_dict, save_similarity=False)
+        refined = recursively_refine_polytomy_using_similarity(subtree, cell_to_cluster, cluster_lineage, similarity, threshold, similarity_dict=similarity_dict, save_similarity=False, refined_dict=refined_dict, save_refined=False)
         if not child.is_leaf():
             child.set_child_nodes(refined.seed_node.child_nodes())
-    
 
-    print('tree.seed_node.child_nodes()', tree.seed_node.child_nodes())
-    print('tree', tree.__str__())
-    
-
+    unrefined_degree = len(child_nodes)
     while(True):
         flag = False # if any refinement happened
 
         children = tree.seed_node.child_nodes()
-        print('children', children)
         
         if(len(children) < 3):
-            print('<3 children.')
+            #print('<3 children.')
             break
             
         leafsets = []
@@ -377,7 +269,7 @@ def recursively_refine_polytomy_using_similarity(tree, cell_to_cluster, cluster_
             topologies.append(dendropy.Tree(seed_node=children[i].extract_subtree()).__str__())
             leafset = [leaf.taxon.label for leaf in children[i].leaf_nodes()]
             leafsets.append(leafset)
-        print('leafsets', leafsets)
+        #print('leafsets', leafsets)
             
         pairwise_similarity = {}
         for i in range(len(children)):
@@ -394,73 +286,66 @@ def recursively_refine_polytomy_using_similarity(tree, cell_to_cluster, cluster_
                     similarity_dict['Max_Subtree'].append(topologies[j])
                     similarity_dict['Min_Subtree_Size'].append(len(leafsets[i]))
                     similarity_dict['Min_Subtree'].append(topologies[i])                
-                similarity_dict['Similarity'].append(sim)
-                print(similarity_dict)
-        print('pairwise_similarity', pairwise_similarity)
+                similarity_dict[similarity].append(sim)
+                #print(similarity_dict)
+        #print('pairwise_similarity', pairwise_similarity)
         
         while(True):
             if not pairwise_similarity:
                 break
             closest_pair = max(pairwise_similarity, key=pairwise_similarity.get)
-            print('closest_pair', closest_pair, children[closest_pair[0]], children[closest_pair[1]])
+            #print('closest_pair', closest_pair, children[closest_pair[0]], children[closest_pair[1]])
             max_sim = pairwise_similarity[closest_pair]
-            print('max_sim', max_sim)
+            #print('max_sim', max_sim)
             if(max_sim >= threshold):
                 flag = True
                 new_node = dendropy.Node()
                 new_node.parent_node = tree.seed_node
                 children[closest_pair[0]].parent_node = new_node
                 children[closest_pair[1]].parent_node = new_node
+                new_node.label = '(' + children[closest_pair[0]].label + ',' + children[closest_pair[1]].label + ')'
+                children[closest_pair[0]].label = None
+                children[closest_pair[1]].label = None
                 valid_pairs = [pair for pair in pairwise_similarity.keys() if not ((closest_pair[0] in pair) or (closest_pair[1] in pair))]  
                 pairwise_similarity = {key: value for key, value in pairwise_similarity.items() if key in valid_pairs}
             else:
                 break
-        print('One level refinement complete')
-        print('tree', tree.__str__())
         if not flag:
             break
+     
+    child_nodes = tree.seed_node.child_nodes()
+    refined_degree = len(child_nodes)
+    if(unrefined_degree > refined_degree):
+        refined_topology = '('
+        for child in child_nodes:
+            refined_topology += child.label + ','
+            child.label = None       
+        refined_topology = refined_topology[:-1] + ')'
+    else:
+        refined_topology = '-'
+    refined_dict['Unrefined_Degree'].append(unrefined_degree)
+    refined_dict['Refined_Degree'].append(refined_degree)
+    refined_dict['Refined_Topology'].append(refined_topology)
     if save_similarity:
         similarity_df = pd.DataFrame.from_dict(similarity_dict)
         similarity_df.to_csv(similarity + '.tsv', sep='\t', index=False)
+    if save_refined:
+        refined_df = pd.DataFrame.from_dict(refined_dict)
+        refined_df.to_csv('refined.tsv', sep='\t', index=False)
 
     return tree
 
-def recursively_refine_polytomy(tree, cell_to_cluster, cluster_lineage, criterion, threshold):
-    if(criterion.startswith('s')):
-        return recursively_refine_polytomy_using_similarity(tree, cell_to_cluster, cluster_lineage, criterion, threshold)
-    if(criterion.startswith('d')):
-        return recursively_refine_polytomy_using_distance(tree, cell_to_cluster, cluster_lineage, criterion, threshold)
-    print('Criterion', criterion, 'unrecognized')
-    return None
-
-def refine_polytomy(tree_path, state_path, cell_col, cluster_col, cluster_lineage_path, criterion, threshold):
-    print('Function: refine_polytomy')
-    
+def refine_polytomy(tree_path, state_path, cell_col, cluster_col, cluster_lineage_path, criterion, threshold):    
     tree = dendropy.Tree.get(path=tree_path, schema="newick", preserve_underscores=True)
     
-    print('Input Tree')
-    print(tree.__str__())
-    print()
-
     state_df = pd.read_csv(state_path, sep='\t', usecols=[cell_col, cluster_col])
     cell_to_cluster = dict(zip(state_df[cell_col], state_df[cluster_col]))
-    print('cell_to_cluster')
-    print(cell_to_cluster)
-    print()
     
     cluster_lineage = dendropy.Tree.get(path=cluster_lineage_path, schema="newick", preserve_underscores=True)
-    print('cluster_lineage')
-    print(cluster_lineage)
-    print()
-
-    refined_tree = recursively_refine_polytomy(tree, cell_to_cluster, cluster_lineage, criterion, threshold)
+    
+    refined_tree = recursively_refine_polytomy_using_similarity(tree, cell_to_cluster, cluster_lineage, criterion, threshold)
     refined_tree.write(path="refined.nwk", schema="newick")
-    print('refined_tree')
-    print(refined_tree.__str__())
-    print()
 
-    print('criterion', criterion)
-    print('threshold', threshold)
      
 def main(args):
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)
@@ -471,6 +356,8 @@ def main(args):
     original_stderr = sys.stderr
     sys.stdout = log_file
     sys.stderr = log_file
+
+    print(args)
 
     start = time.process_time()
     
